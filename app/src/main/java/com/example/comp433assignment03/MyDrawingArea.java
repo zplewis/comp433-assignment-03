@@ -1,4 +1,4 @@
-package com.example.class_work_03;
+package com.example.comp433assignment03;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -11,8 +11,6 @@ import android.view.MotionEvent;
 import android.view.View;
 
 import androidx.annotation.Nullable;
-
-import java.io.ByteArrayOutputStream;
 
 /**
  * From Class Work 02 description:

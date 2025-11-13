@@ -1,10 +1,127 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".activity_sketchtagger">
+    android:orientation="vertical"
+    android:layout_marginHorizontal="20dp"
+    android:layout_marginVertical="20dp"
+    tools:context=".MainActivity">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <com.example.comp433assignment03.MyDrawingArea
+        android:layout_width="match_parent"
+        android:layout_height="250dp"
+        android:layout_marginHorizontal="0dp"
+        android:id="@+id/mydrawingarea_main"
+        android:background="@android:color/darker_gray"
+        android:contentDescription="Main image"
+        />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="10dp"
+        android:orientation="horizontal"
+        >
+
+        <Button
+            android:id="@+id/getTagsButton"
+            android:layout_width="wrap_content"
+            android:layout_weight="0"
+            android:layout_height="wrap_content"
+            android:onClick="onClickGetTags"
+            android:textSize="20sp"
+            android:text="Tags:"
+            android:layout_marginEnd="20dp"
+            />
+
+        <EditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints="cars, vehicles"
+            android:inputType="text"
+            android:textSize="20sp"
+            android:id="@+id/tagsTextbox"
+            android:text=""
+            />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2"
+        >
+
+        <Button
+            android:id="@+id/clearButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="10dp"
+            android:text="Clear"
+            android:onClick="onClickClearBtn"
+            />
+
+        <Button
+            android:id="@+id/saveButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="10dp"
+            android:text="Save"
+            android:onClick="onClickSaveBtn"
+            />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2"
+        android:layout_marginVertical="10dp"
+        >
+
+        <Button
+            android:id="@+id/findButton"
+            android:layout_width="0dp"
+            android:layout_weight="0.5"
+            android:layout_height="wrap_content"
+            android:onClick="onClickFindBtn"
+            android:text="Find"
+            />
+
+        <EditText
+            android:layout_width="0dp"
+            android:layout_weight="1.5"
+            android:layout_height="wrap_content"
+            android:autofillHints="cars, vehicles"
+            android:inputType="text"
+            android:textSize="20sp"
+            android:id="@+id/findTextbox"
+            android:text=""
+            />
+
+    </LinearLayout>
+
+    <ListView
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:id="@+id/photolist"
+        android:layout_marginBottom="5dp"
+        />
+
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnBackToHome"
+        android:onClick="onClickBackToHome"
+        android:text="Back"
+        />
+
+
+</LinearLayout>
