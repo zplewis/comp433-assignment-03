@@ -4,6 +4,7 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -12,6 +13,7 @@ import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
@@ -39,6 +41,10 @@ public class activity_phototagger extends AppCompatActivity {
     // Used to uniquely identify the "session of using the camera" to capture an image
     int REQUEST_IMAGE_CAPTURE = 1000;
 
+    ArrayList<CommentItem> data;
+
+    CommentListAdapter adapter;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -49,6 +55,10 @@ public class activity_phototagger extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        ImageView iv = findViewById(R.id.ivMain);
+        iv.setImageBitmap(null);
+        iv.setBackgroundColor(Color.DKGRAY);
     }
 
     /**
@@ -57,6 +67,8 @@ public class activity_phototagger extends AppCompatActivity {
      * @param view
      */
     public void onClickCameraBtn(View view) {
+
+        Log.v(MainActivity.TAG, "Camera clicked from from activity_phototagger");
 
         // There are two types of Intent objects: explicit (when you specify the class),
         // and implicit, when you are asking for whether an app can meet the need without having
@@ -72,7 +84,7 @@ public class activity_phototagger extends AppCompatActivity {
         // Stop here if componentName is null; this means that no activity from any other app
         // matches our requested Intent type
         if (componentName == null) {
-            Log.v("takePicture", "No app found to take the picture.");
+            Log.v(MainActivity.TAG, "No app found to take the picture.");
             return;
         }
 
@@ -85,7 +97,7 @@ public class activity_phototagger extends AppCompatActivity {
 
         } catch (IOException ex) {
 
-            Log.v("takePicture", "Error occurred creating the image file.");
+            Log.v(MainActivity.TAG, "Error occurred creating the image file.");
             return;
         }
 
@@ -174,10 +186,42 @@ public class activity_phototagger extends AppCompatActivity {
         REQUEST_IMAGE_CAPTURE++;
     }
 
-    public void onClickSaveBtn(View view) {
+    /**
+     *
+     * @return
+     */
+    private Bitmap getBitmapFromCurrentImage() {
 
+        // This shows the picture on the screen
+        ImageView iv = findViewById(R.id.ivMain);
+        Drawable currentImage = iv.getDrawable();
+
+        if (currentImage == null) {
+            return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+        }
+
+        // Get the current image from the ImageView
+        return MainActivity.getBitmapFromDrawable(currentImage);
     }
 
+    /**
+     * Saves the current image to the database as long as tags are specified
+     * @param view
+     */
+    public void onClickSaveBtn(View view) {
+
+        Log.v(MainActivity.TAG, "Save clicked from from activity_phototagger");
+
+        MainActivity.saveImageToDB(this,
+                getBitmapFromCurrentImage(),
+                findViewById(R.id.tagsTextbox),
+                MainActivity.IMAGE_TYPE_PHOTO
+        );
+
+        // Clear the tags after saving
+        TextView textView = findViewById(R.id.tagsTextbox);
+        textView.setText("");
+    }
 
     /**
      * Use the Google Vision API to retrieve the top two tags for the image.
@@ -187,16 +231,8 @@ public class activity_phototagger extends AppCompatActivity {
 
         Log.v(MainActivity.TAG, "Tags clicked from from activity_phototagger");
 
-        // This shows the picture on the screen
-        ImageView iv = findViewById(R.id.ivMain);
-        Drawable currentImage = iv.getDrawable();
-
-        if (currentImage == null) {
-            return;
-        }
-
         // Get the current image from the ImageView
-        Bitmap bitmap = MainActivity.getBitmapFromDrawable(currentImage);
+        Bitmap bitmap = getBitmapFromCurrentImage();
 
         if (bitmap == null) {
             return;
@@ -210,13 +246,13 @@ public class activity_phototagger extends AppCompatActivity {
             @Override
             public void run() {
                 try {
-                    Log.v("takePicture", "Entering vision test try block...");
+                    Log.v(MainActivity.TAG, "Entering vision test try block...");
                     String[] tags = MainActivity.myVisionTester(bitmap);
                     textView.setText(String.join(", ", tags));
 
-                    Log.v("takePicture", "The vision test has completed.");
+                    Log.v(MainActivity.TAG, "The vision test has completed.");
                 } catch (IOException e) {
-                    Log.v("takePicture", "The vision test failed; why?");
+                    Log.v(MainActivity.TAG, "The vision test failed; why?");
                     e.printStackTrace();
                     textView.setText(null);
                 }
@@ -224,5 +260,28 @@ public class activity_phototagger extends AppCompatActivity {
         });
 
         thread.start();
+    }
+
+    public void onClickFindBtn(View view) {
+
+        Log.v(MainActivity.TAG, "Find clicked from from activity_phototagger");
+
+        this.data = new ArrayList<>();
+        this.adapter = new CommentListAdapter(this, R.layout.list_item, data);
+
+        ListView lv = findViewById(R.id.photolist);
+        lv.setAdapter(this.adapter);
+
+        this.data = MainActivity.findImages(this, findViewById(R.id.findTextbox), MainActivity.IMAGE_TYPE_PHOTO);
+
+        this.adapter = new CommentListAdapter(this, R.layout.list_item, data);
+
+        // once you have the adapter, if you want to add items to the ArrayList, notify of the
+        // change. Why is this required, or what is the benefit?
+//        data.add(new CommentItem(R.drawable.dwayne_johnson, "Dwayne Johnson", "Some comment goes here!"));
+//        adapter.notifyDataSetChanged();
+
+
+        lv.setAdapter(adapter);
     }
 }

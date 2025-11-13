@@ -179,6 +179,7 @@ public class MyDrawingArea extends View {
     {
         bmp = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
+        c.drawColor(Color.parseColor("#AAAAAA"));
         Paint p = new Paint();
         p.setColor(Color.BLACK);
         p.setStyle(Paint.Style.STROKE);

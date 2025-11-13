@@ -4,9 +4,11 @@ import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -16,6 +18,7 @@ import android.view.View;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -30,6 +33,7 @@ import com.google.api.services.vision.v1.model.AnnotateImageRequest;
 import com.google.api.services.vision.v1.model.AnnotateImageResponse;
 import com.google.api.services.vision.v1.model.BatchAnnotateImagesRequest;
 import com.google.api.services.vision.v1.model.BatchAnnotateImagesResponse;
+import com.google.api.services.vision.v1.model.EntityAnnotation;
 import com.google.api.services.vision.v1.model.Feature;
 import com.google.api.services.vision.v1.model.Image;
 
@@ -62,6 +66,11 @@ public class MainActivity extends AppCompatActivity {
     static final int IMAGE_TYPE_PHOTO = 1;
     static final int IMAGE_TYPE_SKETCH = 2;
 
+    /**
+     * Maximum size of image BLOB in bytes (1 MB).
+     */
+    static final int MAX_BLOB_SIZE = 1024 * 1024;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -74,7 +83,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // Creates the tables if they do not exist already
-        setupDBAndTables();
+        setupDBAndTables(false);
     }
 
     private void onClickHomeButtons(View view, Class activityClass) {
@@ -191,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 50, stream);
         return stream.toByteArray();
     }
 
@@ -204,25 +213,25 @@ public class MainActivity extends AppCompatActivity {
         List<String> descriptions = new ArrayList<>();
 
         // response.getResponses() returns a List of AnnotateImageResponse objects
-        for (AnnotateImageResponse annotation : response.getResponses()) {
+        for (AnnotateImageResponse annotateImageResponse : response.getResponses()) {
 
-            if (annotation == null || annotation.getLabelAnnotations() == null) {
+            if (annotateImageResponse == null || annotateImageResponse.getLabelAnnotations() == null) {
                 continue;
             }
 
-            annotation.getLabelAnnotations().forEach(label -> {
+            for (EntityAnnotation label : annotateImageResponse.getLabelAnnotations()) {
+
+                // No need to continue if the tag limit has been reached.
+                if (descriptions.size() == MainActivity.TAGLIMIT) {
+                    descriptions.toArray(new String[0]);
+                }
 
                 // This long if statement ensures only valid, unique, non-empty labels are added.
                 if (label.getDescription() != null && !label.getDescription().isEmpty() &&
                         !descriptions.contains(label.getDescription())) {
                     descriptions.add(label.getDescription());
                 }
-
-                if (descriptions.size() == MainActivity.TAGLIMIT) {
-                    return;
-                }
-
-            });
+            }
         }
 
         return descriptions.toArray(new String[0]);
@@ -250,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
 
         try {
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, bout);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 50, bout);
         } catch (Exception e) {
             Log.e(MainActivity.TAG, "failed to compress the bitmap into a byte array: " + e.getMessage(), e);
             e.printStackTrace();
@@ -336,30 +345,53 @@ public class MainActivity extends AppCompatActivity {
         // to the database; input validation!
         if (context == null) {
             // This needed because you cannot call openOrCreateDatabase from a static context.
+            Log.e(MainActivity.TAG, "Context was null, which is required for a SQLite connection.");
             return;
         }
 
         if (bitmap == null) {
+            Log.e(MainActivity.TAG, "Bitmap was null, which is required save the photo data.");
             return;
         }
 
         byte[] bitmapByteArray = getBitmapAsBytes(bitmap);
 
         if (bitmapByteArray.length == 0) {
+            Log.e(MainActivity.TAG, "Byte array from the bitmap was null, which is required save the photo data.");
+            return;
+        }
+
+        // is the image too big?
+        if (bitmapByteArray.length > MAX_BLOB_SIZE) {
+            String errorMessage = "Image size in bytes must be smaller than " + MAX_BLOB_SIZE + " (1 MB); actual: " + bitmapByteArray.length;
+            Log.e(MainActivity.TAG, errorMessage);
+            new AlertDialog.Builder(context)
+                    .setTitle("Image Too Big")
+                    .setMessage(errorMessage)
+                    .setPositiveButton("OK", null)
+                    .show();
             return;
         }
 
         if (tagsTextView == null) {
+            Log.e(MainActivity.TAG, "The TextView with the tag(s) was unavailable, so no tags could be retrieved.");
             return;
         }
 
         String[] tags = cslToArray(tagsTextView.getText().toString());
 
         if (tags.length == 0 || tags.length > TAGLIMIT) {
+            Log.e(MainActivity.TAG, "No tag was specified; a tag is required for saving an image.");
+            new AlertDialog.Builder(context)
+                    .setTitle("Alert")
+                    .setMessage("No tag was specified; a tag is required for saving an image.")
+                    .setPositiveButton("OK", null)
+                    .show();
             return;
         }
 
         if (imageType != IMAGE_TYPE_PHOTO && imageType != IMAGE_TYPE_SKETCH) {
+            Log.e(MainActivity.TAG, "Invalid imageType was specified");
             return;
         }
 
@@ -387,6 +419,7 @@ public class MainActivity extends AppCompatActivity {
             long newId = mydb.insert("images", null, cv);
 
             if (newId == -1) {
+                Log.e(MainActivity.TAG, "Failed to save the image to the database and retrieve the new row ID.");
                 throw new SQLiteException("Failed to save image to the database.");
             }
 
@@ -409,8 +442,15 @@ public class MainActivity extends AppCompatActivity {
 
             mydb.setTransactionSuccessful();
 
+            Log.v(TAG, "Image should be saved to the database with ID: " + newId);
+
         } catch (SQLiteException e) {
-            Log.e("DB_ERROR", "Database error: " + e.getMessage());
+            Log.e(TAG, "Database error: " + e.getMessage());
+            new AlertDialog.Builder(context)
+                    .setTitle("Database Error")
+                    .setMessage(e.getMessage())
+                    .setPositiveButton("OK", null)
+                    .show();
         } finally {
 
             if (mydb != null) {
@@ -425,9 +465,137 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * I'm not even sure if this will work...
+     * @param context
+     * @param sql
+     * @return
+     */
+    private static ArrayList<CommentItem> getCommentItems(Context context, String sql) {
+
+        ArrayList<CommentItem> comments = new ArrayList<>();
+
+        if (context == null) {
+            return comments;
+        }
+
+        if (sql == null || sql.isEmpty()) {
+            Log.e(TAG, "MainActivity.getCommentItems(); SQL is null or empty.");
+            return comments;
+        }
+
+        Log.v(TAG, "MainActivity.getCommentItems(); SQL: " + sql);
+
+        SQLiteDatabase mydb = null;
+
+        // artificial limit, really
+        int numSearchResults = 100;
+
+        try {
+
+            mydb = context.openOrCreateDatabase(DB_NAME, Context.MODE_PRIVATE, null);
+
+            // Perform the search for the images and display them.
+            Cursor c = mydb.rawQuery(sql, null);
+
+            boolean hasData = false;
+            int imageIndex = c.getColumnIndexOrThrow("IMAGE");
+            int imageTagsIndex = c.getColumnIndexOrThrow("TAGS");
+            int dateColIndex = c.getColumnIndexOrThrow("CREATED_AT");
+
+            for (int i = 0; i < numSearchResults; i++) {
+
+                if (i == 0) {
+                    hasData = c.moveToFirst();
+                }
+
+                Log.v(TAG, "MainActivity.getCommentItems(); index: " + i + ", hasData: " + hasData);
+
+                // stop here if there is no data
+                if (!hasData) {
+                    break;
+                }
+
+                byte[] ba = c.getBlob(imageIndex);
+                String tags = c.getString(imageTagsIndex);
+                if (tags == null || tags.trim().isEmpty()) {
+                    tags = "Unavailable";
+                }
+                String imageDate = c.getString(dateColIndex);
+                if (imageDate == null || imageDate.trim().isEmpty()) {
+                    imageDate = "MMM DD, YYYY - HH AMPM";
+                }
+
+                Bitmap bmp = null;
+                if (ba != null && ba.length > 0) {
+                    Log.v(TAG, "Should be able to create a Bitmap object from the DB BLOB.");
+                    bmp = BitmapFactory.decodeByteArray(ba, 0, ba.length);
+                }
+
+                comments.add(new CommentItem(bmp, tags, imageDate));
+
+                hasData = c.moveToNext();
+            }
+
+            c.close();
+        } catch (SQLiteException e) {
+            Log.e(TAG, "Database error: " + e.getMessage());
+            new AlertDialog.Builder(context)
+                    .setTitle("Database Error")
+                    .setMessage(e.getMessage())
+                    .setPositiveButton("OK", null)
+                    .show();
+        } finally {
+            if (mydb != null && mydb.isOpen()) {
+                mydb.close();
+            }
+        }
+
+        return comments;
+    }
+
+    /**
+     * Performs a search query using the "find" textbox. If no tag is provided, then
+     * the most recent.
+     */
+    public static ArrayList<CommentItem> findImages(Context context, TextView findTextView, int imageType) {
+        if (context == null) {
+            Log.e(TAG, "MainActivity.findImages(); context is null");
+            return new ArrayList<CommentItem>();
+        }
+
+        if (imageType != IMAGE_TYPE_PHOTO && imageType != IMAGE_TYPE_SKETCH) {
+            Log.e(TAG, "MainActivity.findImages(); imageType is invalid");
+            return new ArrayList<CommentItem>();
+        }
+
+        if (findTextView == null) {
+            Log.e(TAG, "MainActivity.findImages(); TextView containing the tags is null");
+            return new ArrayList<CommentItem>();
+        }
+
+        String findText = findTextView.getText().toString();
+
+        Log.v("findImages", "MainActivity.findImages(); findText: " + findText);
+
+        String sql = "SELECT t1.image, GROUP_CONCAT(DISTINCT t2.TAG) AS TAGS, datetime(t1.CREATED_AT, 'localtime') AS CREATED_AT " +
+                " FROM images as t1" +
+                " INNER JOIN image_tags AS t2 ON t2.image_id = t1.id " +
+                " WHERE IMAGE_TYPE_ID = " + imageType;
+
+        if (!findText.isEmpty()) {
+            sql += " AND LOWER(t2.tag) = LOWER('" + findText + "') ";
+        }
+
+        sql += " GROUP BY t1.ID " +
+                " ORDER BY t1.CREATED_AT DESC";
+
+        return getCommentItems(context, sql);
+    }
+
+    /**
      * Sets up the tables for use with this application.
      */
-    void setupDBAndTables() {
+    void setupDBAndTables(boolean clearTables) {
 
         SQLiteDatabase mydb = null;
 
@@ -439,8 +607,11 @@ public class MainActivity extends AppCompatActivity {
             mydb.execSQL("PRAGMA foreign_keys = ON;");
 
             // both of these lines are required to clear the tables
-//            mydb.execSQL("DROP TABLE IF EXISTS images");
-//            mydb.execSQL("DROP TABLE IF EXISTS image_tags");
+            if (clearTables) {
+                mydb.execSQL("DROP TABLE IF EXISTS images");
+                mydb.execSQL("DROP TABLE IF EXISTS image_tags");
+                Log.v(TAG, "All SQLite tables for this app have been dropped.");
+            }
 
             // Create a table that keeps up with image blobs if it does not exist already
             // SQLite does not have a dedicated DATETIME type, so use text storing in this format:
@@ -468,11 +639,22 @@ public class MainActivity extends AppCompatActivity {
             mydb.execSQL(sql);
 
         } catch (SQLiteException e) {
-            Log.e("DB_ERROR", "Database error: " + e.getMessage());
+            Log.e(TAG, "Database error: " + e.getMessage());
+            new AlertDialog.Builder(this)
+                    .setTitle("Database Error")
+                    .setMessage(e.getMessage())
+                    .setPositiveButton("OK", null)
+                    .show();
         } finally {
             if (mydb != null && mydb.isOpen()) {
                 mydb.close();
             }
         }
+    }
+
+    public void onClickBtnClearDB(View view) {
+
+        setupDBAndTables(true);
+
     }
 }

@@ -14,7 +14,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/btnPhotoTagger"
         android:onClick="onClickBtnPhotoTagger"
-        android:layout_marginTop="300dp"
+        android:layout_marginTop="275dp"
         android:layout_marginBottom="10dp"
         android:text="Photo Tagger"
         />
@@ -25,6 +25,15 @@
         android:id="@+id/btnSketchTagger"
         android:onClick="onClickBtnSketchTagger"
         android:text="Sketch Tagger"
+        android:layout_marginBottom="10dp"
+        />
+
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnClearDB"
+        android:onClick="onClickBtnClearDB"
+        android:text="Clear SQLite Database"
         />
 
 

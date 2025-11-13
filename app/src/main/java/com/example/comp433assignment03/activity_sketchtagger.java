@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
@@ -19,6 +20,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 public class activity_sketchtagger extends AppCompatActivity {
+
+    ArrayList<CommentItem> data;
+
+    CommentListAdapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +46,24 @@ public class activity_sketchtagger extends AppCompatActivity {
         MyDrawingArea myDrawingArea = findViewById(R.id.mydrawingarea_main);
         myDrawingArea.resetPath();
 
+        TextView textView = findViewById(R.id.tagsTextbox);
+        textView.setText("");
+
+    }
+
+    /**
+     * Saves the current image to the database as long as tags are specified.
+     * @param view
+     */
+    public void onClickSaveBtn(View view) {
+
+        MyDrawingArea myDrawingArea = findViewById(R.id.mydrawingarea_main);
+
+        MainActivity.saveImageToDB(this,
+            myDrawingArea.getBitmap(),
+            findViewById(R.id.tagsTextbox),
+            MainActivity.IMAGE_TYPE_SKETCH
+        );
     }
 
     /**
@@ -81,5 +104,29 @@ public class activity_sketchtagger extends AppCompatActivity {
         });
 
         thread.start();
+    }
+
+    public void onClickFindBtn(View view) {
+
+        Log.v(MainActivity.TAG, "Find clicked from from activity_sketchtagger");
+
+        this.data = new ArrayList<>();
+        this.adapter = new CommentListAdapter(this, R.layout.list_item, data);
+
+        ListView lv = findViewById(R.id.photolist);
+        lv.setAdapter(this.adapter);
+
+        this.data = MainActivity.findImages(this, findViewById(R.id.findTextbox), MainActivity.IMAGE_TYPE_SKETCH);
+
+        this.adapter = new CommentListAdapter(this, R.layout.list_item, data);
+
+        // once you have the adapter, if you want to add items to the ArrayList, notify of the
+        // change. Why is this required, or what is the benefit?
+//        data.add(new CommentItem(R.drawable.dwayne_johnson, "Dwayne Johnson", "Some comment goes here!"));
+//        adapter.notifyDataSetChanged();
+
+
+        lv.setAdapter(adapter);
+
     }
 }

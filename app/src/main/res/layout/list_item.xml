@@ -13,31 +13,34 @@
         android:layout_width="60dp"
         android:layout_height="60dp"
         android:id="@+id/photo"
+        android:background="#AAAAAA"
         />
 
     <LinearLayout
         android:layout_width="260dp"
         android:layout_height="match_parent"
         android:orientation="vertical"
+        android:layout_marginTop="0dp"
+        android:layout_marginLeft="10dp"
         >
 
 
 
     <TextView
         android:layout_width="match_parent"
-        android:layout_height="50sp"
+        android:layout_height="30sp"
         android:id="@+id/name"
         android:textFontWeight="@integer/material_motion_duration_medium_2"
-        android:textSize="20sp"
+        android:textSize="25sp"
         android:text="Title"
         android:textAlignment="textStart"
         />
 
     <TextView
         android:layout_width="match_parent"
-        android:layout_height="50sp"
+        android:layout_height="30sp"
         android:id="@+id/comment"
-        android:textSize="10sp"
+        android:textSize="15sp"
         android:textAlignment="textStart"
         android:text="Comment"
         />
